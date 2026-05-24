@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ring Color Picker</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+}
+
+canvas {
+    display: block;
+    cursor: pointer;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+const SIZE = 560;
+canvas.width = SIZE;
+canvas.height = SIZE;
+
+const CX = SIZE / 2;
+const CY = SIZE / 2;
+const ORBIT = 170;
+const RING_R = 38;
+const PIP_R = 10;
+const PIP_GAP = 24;
+
+const LABELS = ['1','2','3','4','5'];
+const RING_COLORS = ['#333','#333','#333','#333','#333'];
+const RING_X = [false,false,false,false,false];
+const PIP_COLORS = ['#ffffff','#ff5050','#4d7dff'];
+
+function ringAngle(i) {
+    return (-90 + i * 72) * Math.PI / 180;
+}
+
+function ringPos(i) {
+    return {
+        x: CX + ORBIT * Math.cos(ringAngle(i)),
+        y: CY + ORBIT * Math.sin(ringAngle(i))
+    };
+}
+
+// For each ring, position its 3 pips outward from center
+function pipPos(ringIndex, pipIndex) {
+    const a = ringAngle(ringIndex);
+    // outward normal from center
+    const nx = Math.cos(a);
+    const ny = Math.sin(a);
+    // tangent (perpendicular)
+    const tx = -Math.sin(a);
+    const ty = Math.cos(a);
+
+    const rp = ringPos(ringIndex);
+    // place pips beyond the ring edge, spread along tangent
+    const outDist = RING_R + PIP_R + 10;
+    const spread = (pipIndex - 1) * PIP_GAP;
+
+    return {
+        x: rp.x + nx * outDist + tx * spread,
+        y: rp.y + ny * outDist + ty * spread
+    };
+}
+
+function draw() {
+    ctx.clearRect(0, 0, SIZE, SIZE);
+
+    // draw rings
+    for (let i = 0; i < 5; i++) {
+        const { x, y } = ringPos(i);
+
+        // ring fill
+        ctx.beginPath();
+        ctx.arc(x, y, RING_R, 0, Math.PI * 2);
+        ctx.fillStyle = RING_COLORS[i];
+        ctx.fill();
+        ctx.strokeStyle = RING_COLORS[i] === '#333' ? '#777' : '#fff';
+        ctx.lineWidth = 5;
+        ctx.stroke();
+
+        // label
+        ctx.fillStyle = RING_COLORS[i] === '#ffffff' ? '#000' : '#fff';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(LABELS[i], x, y);
+
+        // red X overlay
+        if (RING_X[i]) {
+            ctx.fillStyle = 'red';
+            ctx.font = `bold ${RING_R * 1.6}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('X', x, y + 2);
+        }
+
+        // pips
+        for (let p = 0; p < 3; p++) {
+            const pp = pipPos(i, p);
+
+            ctx.beginPath();
+            ctx.arc(pp.x, pp.y, PIP_R, 0, Math.PI * 2);
+            ctx.fillStyle = PIP_COLORS[p];
+            ctx.fill();
+            ctx.strokeStyle = PIP_COLORS[p] === '#ffffff' ? '#888' : '#000';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+    }
+}
+
+canvas.addEventListener('click', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (SIZE / rect.width);
+    const my = (e.clientY - rect.top) * (SIZE / rect.height);
+
+    // check pips first
+    for (let i = 0; i < 5; i++) {
+        for (let p = 0; p < 3; p++) {
+            const pp = pipPos(i, p);
+            const dx = mx - pp.x;
+            const dy = my - pp.y;
+            if (dx * dx + dy * dy <= PIP_R * PIP_R) {
+                RING_COLORS[i] = PIP_COLORS[p];
+                draw();
+                return;
+            }
+        }
+    }
+
+    // check big rings
+    for (let i = 0; i < 5; i++) {
+        const { x, y } = ringPos(i);
+        const dx = mx - x;
+        const dy = my - y;
+        if (dx * dx + dy * dy <= RING_R * RING_R) {
+            RING_X[i] = !RING_X[i];
+            draw();
+            return;
+        }
+    }
+});
+
+draw();
+</script>
+</body>
+</html>
